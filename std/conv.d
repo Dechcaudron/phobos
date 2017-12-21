@@ -53,6 +53,15 @@ import std.meta;
 import std.range.primitives;
 import std.traits;
 
+unittest
+{
+    assert(to!char("a") == 'a');
+    assert(to!dchar("a") == 'a');
+    //assert(to!wchar("a") == 'a');
+    assert(is(typeof(to!string(""w))));
+    assert(is(typeof(to!wstring(""w))));
+}
+
 // Same as std.string.format, but "self-importing".
 // Helps reduce code and imports, particularly in static asserts.
 // Also helps with missing imports errors.
@@ -1871,6 +1880,48 @@ if (isInputRange!S && !isInfinite!S && isSomeChar!(ElementEncodingType!S) &&
     assert(to!int(byWchar("10"), 10) == 10);
     assert(to!int(byDchar("10")) == 10);
     assert(to!int(byDchar("10"), 10) == 10);
+}
+
+/**
+String, or string-like input range, to char type not directly 
+supported by parse parses the first dchar of the source.
+
+Returns: the first code point of the input range, converted
+         to type T
+
+Throws: ConvException if the input range contains more than
+        a single code point, or if the code point does not
+        fit into a code unit of type T.
+*/
+private T toImpl(T, S)(S value)
+if (isInputRange!S && isSomeChar!(ElementEncodingType!S) &&
+     isSomeChar!T && !is(typeof(parse!T(value))) &&
+     is(typeof(parse!double(value))))
+{
+    immutable dchar codepoint = parse!dchar(value);
+    if(!value.empty)
+        throw new ConvException(convFormat("Cannot convert \"%s\" to %s because it " ~
+                                           "contains more than a single code point.",
+                                           value, T.stringof));
+    auto equivalentTArray = to!(T[])(codepoint);
+    if(equivalentTArray.length > 1)
+        throw new ConvException(convFormat("Code point '%s' does not fit into a single " ~
+                                           "%s code unit", codepoint, T.stringof));
+    return equivalentTArray[0];
+}
+
+unittest
+{
+    import std.exception : assertThrown;
+
+    assert(toImpl!wchar("a") == 'a');
+
+    assert(toImpl!char("a"d) == 'a');
+    assert(toImpl!char("a"w) == 'a');
+    assert(toImpl!wchar("a"d) == 'a');
+
+    assertThrown!ConvException(toImpl!wchar("ab"));
+    assertThrown!ConvException(toImpl!char("😃"d));
 }
 
 /**
