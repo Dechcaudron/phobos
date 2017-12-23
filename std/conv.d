@@ -1883,22 +1883,14 @@ if (isInputRange!S && !isInfinite!S && isSomeChar!(ElementEncodingType!S) &&
 }
 
 /**
-String, or string-like input range, to char type not directly 
-supported by parse parses the first dchar of the source.
-
-Returns: the first code point of the input range, converted
-         to type T
-
-Throws: ConvException if the input range contains more than
-        a single code point, or if the code point does not
-        fit into a code unit of type T.
+String, or string-like input range, to char type not supported by parse
+parses the first dchar of the source and 
 */
 private T toImpl(T, S)(S value)
 if (isInputRange!S && isSomeChar!(ElementEncodingType!S) &&
-     isSomeChar!T && !is(typeof(parse!T(value))) &&
-     is(typeof(parse!double(value))))
+    isSomeChar!T && !is(typeof(parse!T(value))))
 {
-    immutable dchar codepoint = parse!dchar(value);
+    dchar codepoint = parse!dchar(value);
     if(!value.empty)
         throw new ConvException(convFormat("Cannot convert \"%s\" to %s because it " ~
                                            "contains more than a single code point.",
